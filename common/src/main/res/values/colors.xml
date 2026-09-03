@@ -6,6 +6,11 @@
     <color name="white_70">#B2FFFFFF</color>
     <color name="black">#000000</color>
     <color name="red">#FF0000</color>
+    <!-- Фирменный цвет «Эфира». Заведён отдельным именем, а НЕ подменой
+         @color/red: красный используется ещё и как цвет ошибок, и подмена
+         перекрасила бы предупреждения в фиолетовый. -->
+    <color name="efir_accent">#7C6BFF</color>
+    <color name="efir_accent_dark">#4B3FCC</color>
     <color name="semi_red">#E52D27</color>
     <color name="light_red">#FF8080</color>
     <color name="dark_red">#B31217</color>

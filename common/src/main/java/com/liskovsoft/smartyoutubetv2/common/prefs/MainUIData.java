@@ -429,8 +429,22 @@ public class MainUIData extends DataChangeBase implements ProfileChangeListener 
         String[] split = Helpers.splitData(data);
 
         //mIsCardAnimatedPreviewsEnabled = Helpers.parseBoolean(split, 0, true);
-        mVideoGridScale = Helpers.parseFloat(split, 1, 1.0f); // 4 cards in a row
-        mUIScale = Helpers.parseFloat(split, 2, 1.0f);
+        // Эфир 2: сетка плотнее (0.75 вместо 1.0 = ~6 карточек в ряду вместо 4).
+        // Масштаб интерфейса поднят до 1.3 ради читаемости текста, но он тянет
+        // за собой и размер карточек: без этой поправки в ряду оставалось две
+        // штуки. Руководство Apple для телевизора называет комфортным рядом
+        // 5–7 карточек — сюда и целимся.
+        mVideoGridScale = Helpers.parseFloat(split, 1, 0.75f);
+        // Эфир 2: масштаб интерфейса по умолчанию 1.3 вместо 1.0.
+        //
+        // Руководство Apple для телевизора требует минимум 29 pt для основного
+        // текста и 25 pt для вторичного — при просмотре с 2,5–3,5 м. Замер на
+        // нашем кадре 1920×1080 давал подписи ~17 px и заголовки рядов ~22 px,
+        // то есть ниже нормы. Множитель 1.3 поднимает их в норму, не трогая
+        // чужую вёрстку: это ШТАТНАЯ настройка приложения («Масштаб
+        // интерфейса»), так что человек может вернуть 1.0 из меню, если
+        // сидит близко к экрану.
+        mUIScale = Helpers.parseFloat(split, 2, 1.3f);
         mColorSchemeIndex = Helpers.parseInt(split, 3, 1);
         mIsCardMultilineTitleEnabled = Helpers.parseBoolean(split, 4, true);
         mChannelCategorySorting = Helpers.parseInt(split, 5, CHANNEL_SORTING_LAST_VIEWED);

@@ -43,11 +43,25 @@ public class PlayerTweaksData implements ProfileChangeListener {
     public static final int PLAYER_BUTTON_SOUND_OFF = 1 << 25;
     public static final int PLAYER_BUTTON_AFR = 1 << 26;
     public static final int PLAYER_BUTTON_VIDEO_FLIP = 1 << 27;
-    public static final int PLAYER_BUTTON_DEFAULT = PLAYER_BUTTON_SEARCH | PLAYER_BUTTON_PIP | PLAYER_BUTTON_SCREEN_DIMMING | PLAYER_BUTTON_VIDEO_SPEED |
-            PLAYER_BUTTON_VIDEO_STATS | PLAYER_BUTTON_OPEN_CHANNEL | PLAYER_BUTTON_SUBTITLES | PLAYER_BUTTON_SUBSCRIBE |
-            PLAYER_BUTTON_LIKE | PLAYER_BUTTON_DISLIKE | PLAYER_BUTTON_ADD_TO_PLAYLIST | PLAYER_BUTTON_PLAY_PAUSE |
-            PLAYER_BUTTON_REPEAT_MODE | PLAYER_BUTTON_NEXT | PLAYER_BUTTON_PREVIOUS | PLAYER_BUTTON_HIGH_QUALITY |
-            PLAYER_BUTTON_VIDEO_INFO | PLAYER_BUTTON_CHAT;
+    /**
+     * Эфир 2, плеер в стиле Apple TV.
+     *
+     * У Apple панель плеера — это шкала и метаданные; кнопок почти нет, потому
+     * что на телевизоре их всё равно перебирают вслепую пультом. В оригинале
+     * SmartTube по умолчанию включено 18 кнопок в два ряда — на экране это
+     * стена значков, и до нужного приходится долго идти.
+     *
+     * Оставляем четыре, которыми реально пользуются:
+     *  • play/pause — основное действие;
+     *  • качество — из-за него всё и затевалось («хочу посмотреть, есть ли 4K»);
+     *  • субтитры — включают часто и ищут глазами;
+     *  • подписаться — единственный способ добавить канал прямо из ролика.
+     *
+     * ⛔ Это ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ, а не удаление возможностей: все прочие
+     * кнопки остались в настройках плеера и включаются обратно галочкой.
+     */
+    public static final int PLAYER_BUTTON_DEFAULT = PLAYER_BUTTON_PLAY_PAUSE | PLAYER_BUTTON_HIGH_QUALITY |
+            PLAYER_BUTTON_SUBTITLES | PLAYER_BUTTON_SUBSCRIBE;
     public static final int DNS_TYPE_SYSTEM = GlobalPreferences.DNS_TYPE_SYSTEM;
     public static final int DNS_TYPE_IPV4 = GlobalPreferences.DNS_TYPE_IPV4;
     public static final int DNS_TYPE_GOOGLE = GlobalPreferences.DNS_TYPE_GOOGLE;

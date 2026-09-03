@@ -100,7 +100,14 @@ public class AccountsData implements AccountChangeListener {
 
         String[] split = Helpers.splitData(data);
 
-        mIsSelectAccountOnBootEnabled = Helpers.parseBoolean(split, 0, false);
+        // Эфир 2: при запуске СПРАШИВАЕМ, кто смотрит (по умолчанию включено).
+        //
+        // Рекомендации формирует сам YouTube и привязывает их к аккаунту. Если
+        // взрослый и ребёнок смотрят с одного аккаунта, детские мультики
+        // вытесняют всё остальное — ровно на это пожаловался пользователь.
+        // Разделение возможно только разными аккаунтами, поэтому выбор при
+        // старте должен быть на виду, а не спрятан в настройках.
+        mIsSelectAccountOnBootEnabled = Helpers.parseBoolean(split, 0, true);
         // mIsAccountProtectedWithPassword
         // mAccountPassword
         String[] passwords = Helpers.parseArray(split, 3);

@@ -55,7 +55,7 @@ public class VideoCardPresenter extends LongClickPresenter {
         mSelectedBackgroundColor =
                 ContextCompat.getColor(context, Helpers.getThemeAttr(context, R.attr.cardSelectedBackground));
         mSelectedTextColor =
-                ContextCompat.getColor(context, R.color.card_selected_text_grey);
+                ContextCompat.getColor(context, R.color.card_focus_text_efir);
 
         mCardPreviewType = getCardPreviewType(context);
         mThumbQuality = getThumbQuality(context);
@@ -106,13 +106,29 @@ public class VideoCardPresenter extends LongClickPresenter {
             infoField.setBackgroundColor(backgroundColor);
         }
 
+        // Эфир 2, стиль Apple TV: подпись видна ТОЛЬКО у выбранной карточки.
+        // Когда подписан каждый ролик, ряд получается говорливым и глаз ищет,
+        // что выбрано. Apple подписывает один — выбранный.
+        //
+        // ⛔ Прячем САМИ подписи, а не область info_field: до этого я трижды
+        // пробовал скрыть контейнер по R.id.info_field и на устройстве ничего
+        // не менялось — контейнер приходит из ресурсов Leanback и по id
+        // приложения не находится. А вот эти два TextView находятся заведомо:
+        // им прямо здесь меняется цвет, и цвет применяется.
+        //
+        // INVISIBLE, а не GONE: место под текст остаётся занятым, иначе
+        // карточки прыгали бы по высоте при каждом движении фокуса.
+        int textVisibility = selected ? View.VISIBLE : View.INVISIBLE;
+
         TextView titleText = view.findViewById(R.id.title_text);
         if (titleText != null) {
             titleText.setTextColor(textColor);
+            titleText.setVisibility(textVisibility);
         }
         TextView contentText = view.findViewById(R.id.content_text);
         if (contentText != null) {
             contentText.setTextColor(textColor);
+            contentText.setVisibility(textVisibility);
         }
     }
 
