@@ -7,6 +7,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.playback.BasePlayerContr
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerUI;
 import com.liskovsoft.smartyoutubetv2.common.vot.SyncDecider;
 import com.liskovsoft.smartyoutubetv2.common.vot.TranslationAudioPlayer;
+import com.liskovsoft.smartyoutubetv2.common.vot.TranslationRestartLimiter;
 import com.liskovsoft.smartyoutubetv2.common.vot.TranslationSession;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotClient;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotResult;
@@ -23,19 +24,24 @@ import io.reactivex.schedulers.Schedulers;
  * Кнопка «Перевод»: дёргает VOT (video-online-translation Яндекса) и синхронизирует
  * получившуюся русскую озвучку со вторым, приглушённым, экземпляром ExoPlayer.
  *
- * ⚠️ Все обращения к {@link TranslationAudioPlayer} обязаны идти с главного потока — его
- * SimpleExoPlayer падает с IllegalStateException при вызове с чужого потока
- * (verifyApplicationThread в вендоренном ExoPlayer 2.10.6). Поэтому сетевой вызов
- * {@link VotClient#translate} уходит на Schedulers.io(), а всё, что трогает
- * TranslationAudioPlayer/getPlayer(), — после observeOn(AndroidSchedulers.mainThread()).
+ * ⚠️ Все обращения к {@link TranslationAudioPlayer} обязаны идти с главного потока. В
+ * вендоренном ExoPlayer 2.10.6 {@code verifyApplicationThread()} НЕ бросает исключение при
+ * нарушении — он лишь пишет {@code Log.w} со стектрейсом, поэтому вызов с чужого потока не
+ * упадёт явно, а даст тихое неопределённое поведение (гонки внутри SimpleExoPlayer, которые
+ * трудно поймать юнит-тестами и которые вылезают уже на устройстве). Поэтому дисциплина
+ * потоков соблюдается всё равно: сетевой вызов {@link VotClient#translate} уходит на
+ * Schedulers.io(), а всё, что трогает TranslationAudioPlayer/getPlayer(), — после
+ * observeOn(AndroidSchedulers.mainThread()).
  */
 public class TranslationController extends BasePlayerController {
     private static final long MAX_WAIT_MS = 600_000;
     private static final long SYNC_INTERVAL_MS = 1_000;
     private static final long SYNC_THRESHOLD_MS = 300;
     private static final float DUCKED_VOLUME = 0.15f;
+    private static final int MAX_CONSECUTIVE_RESTARTS = 3;
 
     private final TranslationSession mSession = new TranslationSession(MAX_WAIT_MS);
+    private final TranslationRestartLimiter mRestartLimiter = new TranslationRestartLimiter(MAX_CONSECUTIVE_RESTARTS);
     private VotClient mClient;
     private TranslationAudioPlayer mAudioPlayer;
     private Disposable mPollAction;
@@ -59,15 +65,22 @@ public class TranslationController extends BasePlayerController {
         if (mEnabled) {
             stopTranslation();
             getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
-        } else {
-            startTranslation();
+        } else if (startTranslation()) {
             getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_ON);
         }
+        // startTranslation() вернул false (эфир/нет videoId/плеер отсоединён) — она сама
+        // уже привела кнопку в нужное состояние (или её незачем трогать), лишний
+        // BUTTON_ON сюда ставить нельзя: он синхронно затирал бы её собственный OFF.
     }
 
-    private void startTranslation() {
+    /**
+     * @return {@code true}, если перевод действительно запущен (опрос ушёл),
+     *         {@code false} — ранний выход (нет videoId, плеер отсоединён, либо эфир,
+     *         который не поддерживается).
+     */
+    private boolean startTranslation() {
         if (mVideoId == null || getPlayer() == null) {
-            return;
+            return false;
         }
 
         Video video = getVideo();
@@ -75,13 +88,14 @@ public class TranslationController extends BasePlayerController {
             // у Яндекса для эфиров отдельный API с пингами сессии — в этом заходе не поддерживаем
             MessageHelpers.showMessage(getContext(), R.string.vot_live_unsupported);
             getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
-            return;
+            return false;
         }
 
         mEnabled = true;
         mClient = new VotClient(new VotTransport.OkHttpVotTransport());
         mSession.start(System.currentTimeMillis());
         poll(0);
+        return true;
     }
 
     private void poll(long delayMs) {
@@ -145,29 +159,46 @@ public class TranslationController extends BasePlayerController {
         }
 
         mAudioPlayer = new TranslationAudioPlayer(getContext());
-        mAudioPlayer.setErrorListener(() -> {
-            // ссылка на mp3 живёт 2 часа (X-Amz-Expires=7200): на длинном ролике второй
-            // плеер получит ошибку — перезапрашиваем перевод (уже в кэше Яндекса, ответ
-            // ~0,4 с) и продолжаем с текущей позиции. Колбэк ExoPlayer уже приходит на
-            // главный поток (applicationLooper связан с потоком, создавшим плеер, —
-            // см. doc-comment класса), но isDetached() всё равно нужен: пока новый poll
-            // летит, пользователь мог успеть выйти из плеера.
-            if (isDetached()) {
-                return;
-            }
-            if (mAudioPlayer != null) {
-                mAudioPlayer.release();
-                mAudioPlayer = null;
-            }
-            disposeSync();
-            mSession.start(System.currentTimeMillis());
-            poll(0);
-        });
+        mAudioPlayer.setErrorListener(this::onAudioError);
         mAudioPlayer.play(audioUrl, getPlayer().getPositionMs());
         mAudioPlayer.setSpeed(getPlayer().getSpeed());
         getPlayer().setVolume(DUCKED_VOLUME);
         MessageHelpers.showMessage(getContext(), R.string.vot_enabled);
         startSyncTicker();
+        // озвучка стартовала успешно — прошлые протухания (если были) не копим дальше
+        mRestartLimiter.reset();
+    }
+
+    /**
+     * Ссылка на mp3 живёт 2 часа (X-Amz-Expires=7200): на длинном ролике второй плеер
+     * получит ошибку. Перезапрашиваем перевод (он уже в кэше Яндекса, ответ ~0,4 с) и
+     * продолжаем с текущей позиции — но не бесконечно: {@link #mRestartLimiter}
+     * ограничивает число последовательных попыток на случай, если Яндекс начнёт стабильно
+     * отдавать «готово» с нерабочей ссылкой (иначе была бы бесконечная карусель
+     * ошибка → перезапрос → ошибка с приглушённым оригиналом всё это время).
+     */
+    private void onAudioError() {
+        if (!mEnabled || isDetached()) {
+            return;
+        }
+
+        if (mAudioPlayer != null) {
+            mAudioPlayer.release();
+            mAudioPlayer = null;
+        }
+        disposeSync();
+
+        if (!mRestartLimiter.tryRestart()) {
+            MessageHelpers.showMessage(getContext(), R.string.vot_failed);
+            stopTranslation();
+            if (!isDetached()) {
+                getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
+            }
+            return;
+        }
+
+        mSession.start(System.currentTimeMillis());
+        poll(0);
     }
 
     private void startSyncTicker() {
@@ -228,6 +259,7 @@ public class TranslationController extends BasePlayerController {
         mEnabled = false;
         disposePoll();
         disposeSync();
+        mRestartLimiter.reset();
 
         if (mAudioPlayer != null) {
             mAudioPlayer.release();
