@@ -321,6 +321,10 @@
     <string name="action_video_info">Video description</string>
     <string name="action_screen_off">Screen off</string>
     <string name="action_sound_off">Mute</string>
+    <string name="action_translation">Translation</string>
+    <string name="vot_preparing">Preparing voice-over, ~%1$s</string>
+    <string name="vot_enabled">Translation on</string>
+    <string name="vot_failed">Yandex could not translate this video</string>
     <string name="action_playback_queue">Playback queue</string>
     <string name="action_video_speed">Video speed</string>
     <string name="action_subtitles">Subtitles</string>

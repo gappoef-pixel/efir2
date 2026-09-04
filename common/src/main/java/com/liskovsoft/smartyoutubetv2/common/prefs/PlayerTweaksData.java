@@ -43,6 +43,7 @@ public class PlayerTweaksData implements ProfileChangeListener {
     public static final int PLAYER_BUTTON_SOUND_OFF = 1 << 25;
     public static final int PLAYER_BUTTON_AFR = 1 << 26;
     public static final int PLAYER_BUTTON_VIDEO_FLIP = 1 << 27;
+    public static final int PLAYER_BUTTON_TRANSLATION = 1 << 28;
     /**
      * Эфир 2, плеер в стиле Apple TV.
      *
@@ -61,7 +62,7 @@ public class PlayerTweaksData implements ProfileChangeListener {
      * кнопки остались в настройках плеера и включаются обратно галочкой.
      */
     public static final int PLAYER_BUTTON_DEFAULT = PLAYER_BUTTON_PLAY_PAUSE | PLAYER_BUTTON_HIGH_QUALITY |
-            PLAYER_BUTTON_SUBTITLES | PLAYER_BUTTON_SUBSCRIBE;
+            PLAYER_BUTTON_SUBTITLES | PLAYER_BUTTON_SUBSCRIBE | PLAYER_BUTTON_TRANSLATION;
     public static final int DNS_TYPE_SYSTEM = GlobalPreferences.DNS_TYPE_SYSTEM;
     public static final int DNS_TYPE_IPV4 = GlobalPreferences.DNS_TYPE_IPV4;
     public static final int DNS_TYPE_GOOGLE = GlobalPreferences.DNS_TYPE_GOOGLE;

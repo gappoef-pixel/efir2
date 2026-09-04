@@ -317,6 +317,10 @@
     <string name="action_video_info">Описание видео</string>
     <string name="action_screen_off">Выключить экран</string>
     <string name="action_sound_off">Без звука</string>
+    <string name="action_translation">Перевод</string>
+    <string name="vot_preparing">Готовим озвучку, ~%1$s</string>
+    <string name="vot_enabled">Перевод включён</string>
+    <string name="vot_failed">Яндекс не смог перевести этот ролик</string>
     <string name="action_playback_queue">Очередь воспроизведения</string>
     <string name="action_video_speed">Скорость видео</string>
     <string name="action_subtitles">Субтитры</string>

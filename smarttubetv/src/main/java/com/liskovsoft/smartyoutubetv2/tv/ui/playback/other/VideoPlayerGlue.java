@@ -50,6 +50,7 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.SubscribeAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.TwoStateAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.ThumbsDownAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.ThumbsUpAction;
+import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.TranslationAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.VideoSpeedAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.VideoStatsAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.VideoZoomAction;
@@ -134,6 +135,7 @@ public class VideoPlayerGlue extends MaxControlsVideoPlayerGlue<PlayerAdapter> i
         putAction(new RotateAction(context));
         putAction(new FlipAction(context));
         putAction(new SoundOffAction(context));
+        putAction(new TranslationAction(context));
     }
 
     @Override
@@ -189,6 +191,9 @@ public class VideoPlayerGlue extends MaxControlsVideoPlayerGlue<PlayerAdapter> i
         }
         if (mPlayerTweaksData.isPlayerButtonEnabled(PlayerTweaksData.PLAYER_BUTTON_SOUND_OFF)) {
             adapter.add(mActions.get(R.id.action_sound_off));
+        }
+        if (mPlayerTweaksData.isPlayerButtonEnabled(PlayerTweaksData.PLAYER_BUTTON_TRANSLATION)) {
+            adapter.add(mActions.get(R.id.action_translation));
         }
         if (mPlayerTweaksData.isPlayerButtonEnabled(PlayerTweaksData.PLAYER_BUTTON_AFR)) {
             adapter.add(mActions.get(R.id.action_afr));
