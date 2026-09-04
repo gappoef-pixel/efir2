@@ -18,6 +18,7 @@ import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.SearchData;
+import com.liskovsoft.smartyoutubetv2.common.prefs.VotData;
 import com.liskovsoft.smartyoutubetv2.common.utils.AppDialogUtil;
 import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.youtubeapi.service.internal.MediaServiceData;
@@ -68,6 +69,7 @@ public class PlayerSettingsPresenter extends BasePresenter<Void> {
         appendAudioDelayCategory(settingsPresenter);
         appendMasterVolumeCategory(settingsPresenter);
         appendOKButtonCategory(settingsPresenter);
+        appendTranslationCategory(settingsPresenter);
         appendUIAutoHideCategory(settingsPresenter);
         appendSeekTypeCategory(settingsPresenter);
         appendSeekingPreviewCategory(settingsPresenter);
@@ -108,6 +110,22 @@ public class PlayerSettingsPresenter extends BasePresenter<Void> {
                 mPlayerData.getOKButtonBehavior() == PlayerData.OK_TOGGLE_SPEED));
 
         settingsPresenter.appendRadioCategory(getContext().getString(R.string.player_ok_button_behavior), options);
+    }
+
+    private void appendTranslationCategory(AppDialogPresenter settingsPresenter) {
+        List<OptionItem> options = new ArrayList<>();
+        VotData votData = VotData.instance(getContext());
+        float[] volumes = new float[] {0.1f, 0.15f, 0.25f, 0.5f};
+
+        for (float volume : volumes) {
+            int percent = (int) (volume * 100);
+            options.add(UiOptionItem.from(
+                    percent + "%",
+                    option -> votData.setOriginalVolume(volume),
+                    votData.getOriginalVolume() == volume));
+        }
+
+        settingsPresenter.appendRadioCategory(getContext().getString(R.string.vot_original_volume), options);
     }
 
     @SuppressLint("StringFormatMatches")

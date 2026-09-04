@@ -326,6 +326,7 @@
     <string name="vot_enabled">Translation on</string>
     <string name="vot_failed">Yandex could not translate this video</string>
     <string name="vot_live_unsupported">Live streams are not supported yet</string>
+    <string name="vot_original_volume">Original volume under voice-over</string>
     <string name="action_playback_queue">Playback queue</string>
     <string name="action_video_speed">Video speed</string>
     <string name="action_subtitles">Subtitles</string>

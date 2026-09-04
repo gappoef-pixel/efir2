@@ -5,6 +5,7 @@ import com.liskovsoft.smartyoutubetv2.common.R;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.BasePlayerController;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerUI;
+import com.liskovsoft.smartyoutubetv2.common.prefs.VotData;
 import com.liskovsoft.smartyoutubetv2.common.vot.SyncDecider;
 import com.liskovsoft.smartyoutubetv2.common.vot.TranslationAudioPlayer;
 import com.liskovsoft.smartyoutubetv2.common.vot.TranslationRestartLimiter;
@@ -37,7 +38,6 @@ public class TranslationController extends BasePlayerController {
     private static final long MAX_WAIT_MS = 600_000;
     private static final long SYNC_INTERVAL_MS = 1_000;
     private static final long SYNC_THRESHOLD_MS = 300;
-    private static final float DUCKED_VOLUME = 0.15f;
     private static final int MAX_CONSECUTIVE_RESTARTS = 3;
 
     private final TranslationSession mSession = new TranslationSession(MAX_WAIT_MS);
@@ -106,7 +106,8 @@ public class TranslationController extends BasePlayerController {
 
         mPollAction = Observable.timer(delayMs, TimeUnit.MILLISECONDS)
                 .observeOn(Schedulers.io())
-                .map(ignored -> mClient.translate(videoId, duration, "en", "ru"))
+                .map(ignored -> mClient.translate(videoId, duration, "en",
+                        VotData.instance(getContext()).getTargetLanguage()))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::onPollResult, error -> onPollError());
     }
@@ -162,7 +163,7 @@ public class TranslationController extends BasePlayerController {
         mAudioPlayer.setErrorListener(this::onAudioError);
         mAudioPlayer.play(audioUrl, getPlayer().getPositionMs());
         mAudioPlayer.setSpeed(getPlayer().getSpeed());
-        getPlayer().setVolume(DUCKED_VOLUME);
+        getPlayer().setVolume(VotData.instance(getContext()).getOriginalVolume());
         MessageHelpers.showMessage(getContext(), R.string.vot_enabled);
         startSyncTicker();
         // озвучка стартовала успешно — прошлые протухания (если были) не копим дальше
