@@ -629,7 +629,7 @@ public class GeneralData implements ProfileChangeListener {
         mMasterPassword = Helpers.parseStr(split, 41);
         // StackOverflow on old devices?
         //mIsOldHomeLookEnabled = Helpers.parseBoolean(split, 42, Build.VERSION.SDK_INT <= 19);
-        mIsOldUpdateNotificationsEnabled = Helpers.parseBoolean(split, 43, false);
+        mIsOldUpdateNotificationsEnabled = Helpers.parseBoolean(split, 43, true);
         mScreensaverDimmingPercents = Helpers.parseInt(split, 44, 80);
         mNextPreviousAction = Helpers.parseInt(split, 45, ACTION_UNDEFINED);
         mIsRemapPlayToOKEnabled = Helpers.parseBoolean(split, 46, false);
