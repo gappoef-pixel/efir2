@@ -46,6 +46,9 @@ public final class VotProto {
                 long[] len = readVarint(data, pos);
                 pos = (int) len[1];
                 int size = (int) len[0];
+                if (size < 0 || pos + size > data.length) {
+                    throw new IllegalArgumentException("truncated VOT response");
+                }
                 String value = new String(data, pos, size, UTF8);
                 if (field == 1) {
                     result.audioUrl = value;
@@ -71,6 +74,9 @@ public final class VotProto {
         long value = 0;
         int shift = 0;
         while (true) {
+            if (pos >= data.length) {
+                throw new IllegalArgumentException("truncated VOT response");
+            }
             int b = data[pos++] & 0xFF;
             value |= (long) (b & 0x7F) << shift;
             if ((b & 0x80) == 0) {

@@ -30,4 +30,12 @@ public class VotProtoDecodeTest {
         assertEquals(VotResult.STATUS_WAITING, r.status);
         assertEquals(29, r.remainingSec);
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void throwsOnTruncatedBody() {
+        // тег url(1, length-delimited) с заявленной длиной 0x38 (56 байт), но тело
+        // обрезано до нескольких байт — разбор обязан кинуть IllegalArgumentException,
+        // а не ArrayIndexOutOfBoundsException/StringIndexOutOfBoundsException
+        VotProto.decodeTranslateResponse(VotHex.decode("0a3868747470"));
+    }
 }
