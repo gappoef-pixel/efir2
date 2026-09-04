@@ -58,4 +58,20 @@ public class TranslationSessionTest {
         failed.status = VotResult.STATUS_FAILED;
         assertEquals(TranslationSession.Decision.GIVE_UP, session.onResult(failed, 1_000));
     }
+
+    @Test
+    public void readyBeatsTimeout() {
+        TranslationSession session = new TranslationSession(600_000);
+        session.start(0);
+        assertEquals(TranslationSession.Decision.READY, session.onResult(finished(), 700_000));
+        assertEquals("https://vtrans.example/aa.mp3", session.audioUrl());
+    }
+
+    @Test
+    public void handlesNegativeRemainingSec() {
+        TranslationSession session = new TranslationSession(600_000);
+        session.start(0);
+        assertEquals(TranslationSession.Decision.WAIT, session.onResult(waiting(-1), 1_000));
+        assertEquals(5_000, session.nextPollDelayMs());
+    }
 }
