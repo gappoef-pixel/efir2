@@ -99,16 +99,20 @@ public class TranslationController extends BasePlayerController {
                 startAudio(mSession.audioUrl());
                 break;
             case WAIT:
-                if (mSession.lastRemainingSec() > 0) {
+                if (mSession.lastRemainingSec() > 0 && !isDetached()) {
                     MessageHelpers.showMessage(getContext(),
                             getContext().getString(R.string.vot_preparing, formatWait(mSession.lastRemainingSec())));
                 }
                 poll(mSession.nextPollDelayMs());
                 break;
             case GIVE_UP:
-                MessageHelpers.showMessage(getContext(), R.string.vot_failed);
+                if (!isDetached()) {
+                    MessageHelpers.showMessage(getContext(), R.string.vot_failed);
+                }
                 stopTranslation();
-                getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
+                if (!isDetached()) {
+                    getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
+                }
                 break;
         }
     }
@@ -118,17 +122,17 @@ public class TranslationController extends BasePlayerController {
     }
 
     private void onPollError() {
-        if (getContext() != null) {
+        if (!isDetached()) {
             MessageHelpers.showMessage(getContext(), R.string.vot_failed);
         }
         stopTranslation();
-        if (getPlayer() != null) {
+        if (!isDetached()) {
             getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
         }
     }
 
     private void startAudio(String audioUrl) {
-        if (getPlayer() == null) {
+        if (isDetached()) {
             return;
         }
 
@@ -157,7 +161,7 @@ public class TranslationController extends BasePlayerController {
 
     @Override
     public void onPlay() {
-        if (mAudioPlayer != null) {
+        if (mAudioPlayer != null && !isDetached()) {
             mAudioPlayer.seekTo(getPlayer().getPositionMs());
             mAudioPlayer.resume();
         }
@@ -172,7 +176,7 @@ public class TranslationController extends BasePlayerController {
 
     @Override
     public void onSeekEnd() {
-        if (mAudioPlayer != null) {
+        if (mAudioPlayer != null && !isDetached()) {
             mAudioPlayer.seekTo(getPlayer().getPositionMs());
         }
     }
@@ -219,5 +223,15 @@ public class TranslationController extends BasePlayerController {
         if (mSyncAction != null && !mSyncAction.isDisposed()) {
             mSyncAction.dispose();
         }
+    }
+
+    /**
+     * {@code getContext()}/{@code getPlayer()} в {@link BasePlayerController} резолвятся через
+     * {@code WeakReference} и могут превратиться в {@code null} уже после того, как сетевой
+     * ответ VOT ушёл в очередь (пользователь успел выйти из плеера, пока ждал перевод 1–5 минут).
+     * Единая точка проверки перед использованием этих геттеров в асинхронных колбэках.
+     */
+    private boolean isDetached() {
+        return getContext() == null || getPlayer() == null;
     }
 }
