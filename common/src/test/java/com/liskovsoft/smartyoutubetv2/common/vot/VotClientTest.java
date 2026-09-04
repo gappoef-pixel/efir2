@@ -64,6 +64,22 @@ public class VotClientTest {
         assertEquals(29, result.remainingSec);
     }
 
+    // Регресс на "415: Unsupported Media Type" от rtc-balancer-api-browser-yandex-net: приставка слала
+    // запрос без полного набора заголовков VotClient (сам Content-Type проверяется отдельно в VotTransportTest,
+    // так как в этом фальшивом транспорте виден только Map<String, String> с заголовками, а не MediaType тела).
+    @Test
+    public void sendsFullHeaderSetForTranslationRequest() throws Exception {
+        FakeTransport transport = new FakeTransport();
+        new VotClient(transport).translate("dQw4w9WgXcQ", 213d, "en", "ru");
+
+        Map<String, String> headers = transport.lastHeaders;
+        assertNotNull(headers.get("Vtrans-Signature"));
+        assertNotNull(headers.get("Sec-Vtrans-Sk"));
+        assertNotNull(headers.get("Sec-Vtrans-Token"));
+        assertNotNull(headers.get("User-Agent"));
+        assertTrue(headers.get("User-Agent").contains("YaBrowser/26.4.1.1026"));
+    }
+
     @Test
     public void claimsNewVideoOnAudioRequestedStatus() throws Exception {
         ScriptedTransport transport = new ScriptedTransport();

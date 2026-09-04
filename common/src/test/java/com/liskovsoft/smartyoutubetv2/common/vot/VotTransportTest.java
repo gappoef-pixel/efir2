@@ -32,4 +32,13 @@ public class VotTransportTest {
 
         assertTrue(message.contains("500"));
     }
+
+    // Регресс на 415 "Unsupported Media Type": сервис Яндекса принимает только "application/x-protobuf",
+    // а не "application/protobuf". Content-Type тела запроса выставляется через OkHttp MediaType и потому
+    // не виден фальшивому VotTransport в VotClientTest — эта проверка ловит опечатку в самой константе.
+    @Test
+    public void contentTypeConstantsMatchYandexProtocol() {
+        assertEquals("application/x-protobuf", VotTransport.OkHttpVotTransport.CONTENT_TYPE_PROTOBUF);
+        assertEquals("application/json", VotTransport.OkHttpVotTransport.CONTENT_TYPE_JSON);
+    }
 }

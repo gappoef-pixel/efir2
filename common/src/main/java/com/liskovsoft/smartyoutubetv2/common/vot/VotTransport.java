@@ -16,8 +16,15 @@ public interface VotTransport {
     void putJson(String path, String json) throws IOException;
 
     class OkHttpVotTransport implements VotTransport {
-        private static final MediaType PROTOBUF = MediaType.parse("application/protobuf");
-        private static final MediaType JSON = MediaType.parse("application/json");
+        // Эталонная реализация протокола (yavot-py) шлёт именно "application/x-protobuf",
+        // а не "application/protobuf" — сервис Яндекса на второй вариант отвечает 415.
+        // Вынесено в константы, чтобы опечатку в строке ловил юнит-тест (см. VotTransportTest),
+        // а не полевая проверка на приставке: сам MediaType не виден фальшивому VotTransport в тестах VotClient.
+        static final String CONTENT_TYPE_PROTOBUF = "application/x-protobuf";
+        static final String CONTENT_TYPE_JSON = "application/json";
+
+        private static final MediaType PROTOBUF = MediaType.parse(CONTENT_TYPE_PROTOBUF);
+        private static final MediaType JSON = MediaType.parse(CONTENT_TYPE_JSON);
         private static final String BASE_URL = "https://api.browser.yandex.ru";
         private static final Charset UTF8 = Charset.forName("UTF-8");
         private static final int ERROR_SNIPPET_MAX_LENGTH = 200;
@@ -29,8 +36,12 @@ public interface VotTransport {
                     .url(BASE_URL + path)
                     .post(RequestBody.create(PROTOBUF, body));
 
+            addCommonHeaders(builder);
+
+            // Заголовки от VotClient (подпись, токен, User-Agent) идут последними и имеют приоритет:
+            // header() перезаписывает значение по имени, поэтому дубликатов не будет.
             for (Map.Entry<String, String> header : headers.entrySet()) {
-                builder.addHeader(header.getKey(), header.getValue());
+                builder.header(header.getKey(), header.getValue());
             }
 
             try (Response response = mClient.newCall(builder.build()).execute()) {
@@ -43,16 +54,31 @@ public interface VotTransport {
 
         @Override
         public void putJson(String path, String json) throws IOException {
-            Request request = new Request.Builder()
+            Request.Builder builder = new Request.Builder()
                     .url(BASE_URL + path)
-                    .put(RequestBody.create(JSON, json))
-                    .build();
+                    .put(RequestBody.create(JSON, json));
+
+            addCommonHeaders(builder);
+
+            Request request = builder.build();
 
             try (Response response = mClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     throw new IOException(buildErrorMessage(response.code(), readBodySafely(response)));
                 }
             }
+        }
+
+        /**
+         * Базовый набор заголовков эталонной реализации протокола (yavot-py), помимо Content-Type
+         * (тот выставляется отдельно через {@link MediaType} в {@link RequestBody#create}) и
+         * заголовков от {@code VotClient} (подпись/токен/User-Agent, добавляются вызывающим кодом отдельно).
+         */
+        private static void addCommonHeaders(Request.Builder builder) {
+            builder.header("Accept", CONTENT_TYPE_PROTOBUF);
+            builder.header("Accept-Language", "en");
+            builder.header("Pragma", "no-cache");
+            builder.header("Cache-Control", "no-cache");
         }
 
         private static byte[] readBodySafely(Response response) {
