@@ -12,6 +12,19 @@ import com.liskovsoft.youtubeapi.service.internal.MediaServiceData;
 
 public class PlayerTweaksData implements ProfileChangeListener {
     private static final String VIDEO_PLAYER_TWEAKS_DATA = "video_player_tweaks_data";
+    /**
+     * Разовая миграция маски кнопок плеера.
+     *
+     * На чистой установке {@link #PLAYER_BUTTON_DEFAULT} применяется сразу.
+     * На уже установленном приложении маска читается из сохранённого файла
+     * настроек, и добавление нового бита в {@code PLAYER_BUTTON_DEFAULT} само
+     * по себе никого не касается — пользователь просто не увидит новую
+     * кнопку. {@link #migratePlayerButtons(int, int)} один раз подмешивает
+     * такой бит в уже сохранённую маску, а версия миграции гарантирует, что
+     * это происходит ровно один раз: если пользователь потом сам выключит
+     * кнопку, при следующем запуске она не включится обратно.
+     */
+    private static final int PLAYER_BUTTONS_MIGRATION_VERSION = 1;
     public static final int PLAYER_DATA_SOURCE_DEFAULT = 0;
     public static final int PLAYER_DATA_SOURCE_OKHTTP = 1;
     public static final int PLAYER_DATA_SOURCE_CRONET = 2;
@@ -125,6 +138,7 @@ public class PlayerTweaksData implements ProfileChangeListener {
     private boolean mIsDontResizeVideoToFitDialogEnabled;
     private boolean mIsSuggestionsHorizontallyScrolled;
     private boolean mIsQueueRespectsPlaybackMode;
+    private int mPlayerButtonsMigrationVersion;
     private final Runnable mPersistDataInt = this::persistDataInt;
 
     private PlayerTweaksData(Context context) {
@@ -779,8 +793,35 @@ public class PlayerTweaksData implements ProfileChangeListener {
         mIsQuickSkipVideosAltEnabled = Helpers.parseBoolean(split, 58, false);
         mIsAudioTimeStretchingEnabled = Helpers.parseBoolean(split, 59, true);
         mIsQueueRespectsPlaybackMode = Helpers.parseBoolean(split, 60, false);
+        mPlayerButtonsMigrationVersion = Helpers.parseInt(split, 61, 0);
 
         updateDefaultValues();
+
+        int migratedPlayerButtons = migratePlayerButtons(mPlayerButtons, mPlayerButtonsMigrationVersion);
+
+        if (migratedPlayerButtons != mPlayerButtons || mPlayerButtonsMigrationVersion < PLAYER_BUTTONS_MIGRATION_VERSION) {
+            mPlayerButtons = migratedPlayerButtons;
+            mPlayerButtonsMigrationVersion = PLAYER_BUTTONS_MIGRATION_VERSION;
+            persistNow();
+        }
+    }
+
+    /**
+     * Разово подмешивает новые кнопки в уже сохранённую маску (см.
+     * {@link #PLAYER_BUTTONS_MIGRATION_VERSION}). Чистый метод — без Android,
+     * поэтому легко тестируется без Context/Robolectric.
+     *
+     * ⛔ Как только пользователь осознанно выключит кнопку, она пропадает из
+     * сохранённой маски насовсем: {@code storedMigrationVersion} после первого
+     * запуска уже не меньше {@link #PLAYER_BUTTONS_MIGRATION_VERSION}, и
+     * миграция больше не срабатывает — бит обратно не добавляется.
+     */
+    static int migratePlayerButtons(int storedButtons, int storedMigrationVersion) {
+        if (storedMigrationVersion < 1) {
+            return storedButtons | PLAYER_BUTTON_TRANSLATION;
+        }
+
+        return storedButtons;
     }
 
     public void persistNow() {
@@ -806,7 +847,8 @@ public class PlayerTweaksData implements ProfileChangeListener {
                 mIsUnsafeAudioFormatsEnabled, null, mIsLoopShortsEnabled, mIsQuickSkipShortsEnabled, mIsRememberPositionOfLiveVideosEnabled,
                 mIsOculusQuestFixEnabled, null, mIsExtraLongSpeedListEnabled, mIsQuickSkipVideosEnabled, mIsNetworkErrorFixingDisabled, mIsCommentsPlacedLeft,
                 null, mIsAudioFocusEnabled, mIsDontResizeVideoToFitDialogEnabled, mIsSuggestionsHorizontallyScrolled,
-                mIsQuickSkipShortsAltEnabled, mIsQuickSkipVideosAltEnabled, mIsAudioTimeStretchingEnabled, mIsQueueRespectsPlaybackMode
+                mIsQuickSkipShortsAltEnabled, mIsQuickSkipVideosAltEnabled, mIsAudioTimeStretchingEnabled, mIsQueueRespectsPlaybackMode,
+                mPlayerButtonsMigrationVersion
                 ));
     }
 
