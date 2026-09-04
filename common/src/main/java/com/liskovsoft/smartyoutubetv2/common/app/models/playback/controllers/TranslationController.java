@@ -70,6 +70,14 @@ public class TranslationController extends BasePlayerController {
             return;
         }
 
+        Video video = getVideo();
+        if (video != null && video.isLive) {
+            // у Яндекса для эфиров отдельный API с пингами сессии — в этом заходе не поддерживаем
+            MessageHelpers.showMessage(getContext(), R.string.vot_live_unsupported);
+            getPlayer().setButtonState(R.id.action_translation, PlayerUI.BUTTON_OFF);
+            return;
+        }
+
         mEnabled = true;
         mClient = new VotClient(new VotTransport.OkHttpVotTransport());
         mSession.start(System.currentTimeMillis());
@@ -137,6 +145,24 @@ public class TranslationController extends BasePlayerController {
         }
 
         mAudioPlayer = new TranslationAudioPlayer(getContext());
+        mAudioPlayer.setErrorListener(() -> {
+            // ссылка на mp3 живёт 2 часа (X-Amz-Expires=7200): на длинном ролике второй
+            // плеер получит ошибку — перезапрашиваем перевод (уже в кэше Яндекса, ответ
+            // ~0,4 с) и продолжаем с текущей позиции. Колбэк ExoPlayer уже приходит на
+            // главный поток (applicationLooper связан с потоком, создавшим плеер, —
+            // см. doc-comment класса), но isDetached() всё равно нужен: пока новый poll
+            // летит, пользователь мог успеть выйти из плеера.
+            if (isDetached()) {
+                return;
+            }
+            if (mAudioPlayer != null) {
+                mAudioPlayer.release();
+                mAudioPlayer = null;
+            }
+            disposeSync();
+            mSession.start(System.currentTimeMillis());
+            poll(0);
+        });
         mAudioPlayer.play(audioUrl, getPlayer().getPositionMs());
         mAudioPlayer.setSpeed(getPlayer().getSpeed());
         getPlayer().setVolume(DUCKED_VOLUME);

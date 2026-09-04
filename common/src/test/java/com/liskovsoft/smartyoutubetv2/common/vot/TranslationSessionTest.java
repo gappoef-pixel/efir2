@@ -74,4 +74,16 @@ public class TranslationSessionTest {
         assertEquals(TranslationSession.Decision.WAIT, session.onResult(waiting(-1), 1_000));
         assertEquals(5_000, session.nextPollDelayMs());
     }
+
+    @Test
+    public void restartResetsDeadlineAndUrl() {
+        TranslationSession session = new TranslationSession(600_000);
+        session.start(0);
+        session.onResult(finished(), 1_000);
+        assertNotNull(session.audioUrl());
+
+        session.start(700_000); // перезапуск после протухшей ссылки
+        assertNull(session.audioUrl());
+        assertEquals(TranslationSession.Decision.WAIT, session.onResult(waiting(5), 700_500));
+    }
 }

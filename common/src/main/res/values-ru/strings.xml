@@ -321,6 +321,7 @@
     <string name="vot_preparing">Готовим озвучку, ~%1$s</string>
     <string name="vot_enabled">Перевод включён</string>
     <string name="vot_failed">Яндекс не смог перевести этот ролик</string>
+    <string name="vot_live_unsupported">Прямые эфиры пока не переводятся</string>
     <string name="action_playback_queue">Очередь воспроизведения</string>
     <string name="action_video_speed">Скорость видео</string>
     <string name="action_subtitles">Субтитры</string>
