@@ -13,8 +13,11 @@ import okhttp3.ResponseBody;
 public interface VotTransport {
     byte[] post(String path, byte[] body, Map<String, String> headers) throws IOException;
 
+    void putJson(String path, String json) throws IOException;
+
     class OkHttpVotTransport implements VotTransport {
         private static final MediaType PROTOBUF = MediaType.parse("application/protobuf");
+        private static final MediaType JSON = MediaType.parse("application/json");
         private static final String BASE_URL = "https://api.browser.yandex.ru";
         private static final Charset UTF8 = Charset.forName("UTF-8");
         private static final int ERROR_SNIPPET_MAX_LENGTH = 200;
@@ -35,6 +38,20 @@ public interface VotTransport {
                     throw new IOException(buildErrorMessage(response.code(), readBodySafely(response)));
                 }
                 return response.body().bytes();
+            }
+        }
+
+        @Override
+        public void putJson(String path, String json) throws IOException {
+            Request request = new Request.Builder()
+                    .url(BASE_URL + path)
+                    .put(RequestBody.create(JSON, json))
+                    .build();
+
+            try (Response response = mClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    throw new IOException(buildErrorMessage(response.code(), readBodySafely(response)));
+                }
             }
         }
 

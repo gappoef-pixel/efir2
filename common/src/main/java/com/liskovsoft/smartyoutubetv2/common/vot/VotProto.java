@@ -23,6 +23,23 @@ public final class VotProto {
         return out.toByteArray();
     }
 
+    public static byte[] encodeAudioRequest(String translationId, String url, String fileId) {
+        ByteArrayOutputStream audioInfo = new ByteArrayOutputStream();
+        writeString(audioInfo, 1, fileId); // AudioBufferObject.fileId
+        // AudioBufferObject.audioFile(2) пустой -> пропускаем
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        writeString(out, 1, translationId);    // VideoTranslationAudioRequest.translationId
+        writeString(out, 2, url);              // VideoTranslationAudioRequest.url
+
+        byte[] audioInfoBytes = audioInfo.toByteArray();
+        writeTag(out, 6, 2);                   // VideoTranslationAudioRequest.audioInfo
+        writeVarint(out, audioInfoBytes.length);
+        out.write(audioInfoBytes, 0, audioInfoBytes.length);
+
+        return out.toByteArray();
+    }
+
     public static VotResult decodeTranslateResponse(byte[] data) {
         VotResult result = new VotResult();
         int pos = 0;
