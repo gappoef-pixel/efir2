@@ -751,6 +751,10 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
                                 mBrowseProcessor.process(videoGroup);
 
                                 continueGroupIfNeeded(videoGroup, false);
+
+                                if (section.getId() == MediaGroup.TYPE_HOME) {
+                                    warmupBotGuardIfNeeded(videoGroup);
+                                }
                             }
                         },
                         error -> {
@@ -759,6 +763,26 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
                         }, () -> handleLoadError(null));
 
         mActions.add(updateAction);
+    }
+
+    /**
+     * Prefetches format info for the first Home video as soon as it appears, so that the BotGuard
+     * PO-token check (triggered internally by the format info request) is already done by the time
+     * the user actually opens a video, instead of adding ~4-5s to the very first playback.<br/>
+     * Skipped while playback is already active (e.g. the app was opened straight into a video via
+     * intent), so this never competes with a real, user-triggered request. Actually runs at most
+     * once per process — see {@link MediaServiceManager#warmupFormatInfoIfNeeded}.
+     */
+    private void warmupBotGuardIfNeeded(VideoGroup videoGroup) {
+        if (getPlaybackPresenter().isEngineInitialized() || getViewManager().isPlayerInForeground()) {
+            return;
+        }
+
+        List<Video> videos = videoGroup.getVideos();
+
+        if (videos != null && !videos.isEmpty()) {
+            getServiceManager().warmupFormatInfoIfNeeded(videos.get(0));
+        }
     }
 
     private void updateVideoGrid(BrowseSection section, Observable<MediaGroup> group, int column) {

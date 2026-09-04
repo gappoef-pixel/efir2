@@ -55,6 +55,10 @@ public class MediaServiceManager implements OnAccountChange {
     private Disposable mPlaylistGroupAction;
     private Disposable mPlaylistInfosAction;
     private Disposable mHistoryAction;
+    // Dedicated disposable for the BotGuard warmup request (see warmupFormatInfoIfNeeded).
+    // NOTE: must stay separate from mFormatInfoAction, so the warmup can never cancel a real loadFormatInfo() call (and vice versa).
+    private Disposable mWarmupFormatInfoAction;
+    private boolean mIsBotGuardWarmedUp;
     private static final int MIN_GRID_GROUP_SIZE = 13;
     private static final int MIN_ROW_GROUP_SIZE = 5;
     private static final int MIN_SCALED_GRID_GROUP_SIZE = 35;
@@ -257,6 +261,29 @@ public class MediaServiceManager implements OnAccountChange {
                 .subscribe(
                         onFormatInfo::onFormatInfo,
                         error -> Log.e(TAG, "loadFormatInfo error: %s", error.getMessage())
+                );
+    }
+
+    /**
+     * Warms up the BotGuard PO-token check in the background, so it's already done by the time the user opens a video.<br/>
+     * Meant to be called once, as soon as the first videos appear on the Home screen (see BrowsePresenter).<br/>
+     * Runs at most once per process and uses its own disposable ({@link #mWarmupFormatInfoAction}), completely
+     * independent from {@link #mFormatInfoAction}, so it can never cancel (or be cancelled by) a real loadFormatInfo() call.<br/>
+     * Result and errors are ignored on purpose: this is a fire-and-forget prefetch, not a real data request.
+     */
+    public void warmupFormatInfoIfNeeded(Video item) {
+        if (mIsBotGuardWarmedUp || item == null || item.videoId == null) {
+            return;
+        }
+
+        mIsBotGuardWarmedUp = true;
+
+        RxHelper.disposeActions(mWarmupFormatInfoAction);
+
+        mWarmupFormatInfoAction = mItemService.getFormatInfoObserve(item.videoId)
+                .subscribe(
+                        formatInfo -> {},
+                        error -> {} // Silently ignore. This is just a background warmup, not a real request.
                 );
     }
 
