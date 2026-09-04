@@ -8,7 +8,7 @@ public class VotClient {
     public static final String PATH_TRANSLATE = "/video-translation/translate";
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/147.0.0.0 YaBrowser/26.4.1.1026 Yowser/2.5 Safari/537.36";
+            "Chrome/147.0.0.0 YaBrowser/" + VotCrypto.COMPONENT_VERSION + " Yowser/2.5 Safari/537.36";
 
     private final VotTransport mTransport;
     private final String mSessionUuid = VotCrypto.randomUuid();
