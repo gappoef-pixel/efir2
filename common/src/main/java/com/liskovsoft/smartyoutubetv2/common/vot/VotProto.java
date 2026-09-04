@@ -23,6 +23,64 @@ public final class VotProto {
         return out.toByteArray();
     }
 
+    public static VotResult decodeTranslateResponse(byte[] data) {
+        VotResult result = new VotResult();
+        int pos = 0;
+        while (pos < data.length) {
+            long[] tag = readVarint(data, pos);
+            pos = (int) tag[1];
+            int field = (int) (tag[0] >>> 3);
+            int wireType = (int) (tag[0] & 0x7);
+
+            if (wireType == 0) { // varint
+                long[] v = readVarint(data, pos);
+                pos = (int) v[1];
+                if (field == 4) {
+                    result.status = (int) v[0];
+                } else if (field == 5) {
+                    result.remainingSec = (int) v[0];
+                }
+            } else if (wireType == 1) { // 64-bit
+                pos += 8;
+            } else if (wireType == 2) { // length-delimited
+                long[] len = readVarint(data, pos);
+                pos = (int) len[1];
+                int size = (int) len[0];
+                String value = new String(data, pos, size, UTF8);
+                if (field == 1) {
+                    result.audioUrl = value;
+                } else if (field == 7) {
+                    result.translationId = value;
+                } else if (field == 8) {
+                    result.detectedLanguage = value;
+                } else if (field == 9) {
+                    result.message = value;
+                }
+                pos += size;
+            } else if (wireType == 5) { // 32-bit
+                pos += 4;
+            } else {
+                throw new IllegalArgumentException("Unsupported wire type: " + wireType);
+            }
+        }
+        return result;
+    }
+
+    /** @return [значение, новая позиция] */
+    private static long[] readVarint(byte[] data, int pos) {
+        long value = 0;
+        int shift = 0;
+        while (true) {
+            int b = data[pos++] & 0xFF;
+            value |= (long) (b & 0x7F) << shift;
+            if ((b & 0x80) == 0) {
+                break;
+            }
+            shift += 7;
+        }
+        return new long[] {value, pos};
+    }
+
     private static void writeTag(ByteArrayOutputStream out, int field, int wireType) {
         writeVarint(out, (field << 3) | wireType);
     }
