@@ -45,13 +45,13 @@ public class VotData {
     }
 
     private void restoreState() {
-        String[] split = Helpers.splitData(mAppPrefs.getData(VOT_DATA));
+        String[] split = Helpers.splitData(mAppPrefs.getProfileData(VOT_DATA));
 
         mOriginalVolume = Helpers.parseFloat(split, 0, 0.15f);
         mTargetLanguage = Helpers.parseStr(split, 1, "ru");
     }
 
     private void persistState() {
-        mAppPrefs.setData(VOT_DATA, Helpers.mergeData(mOriginalVolume, mTargetLanguage));
+        mAppPrefs.setProfileData(VOT_DATA, Helpers.mergeData(mOriginalVolume, mTargetLanguage));
     }
 }

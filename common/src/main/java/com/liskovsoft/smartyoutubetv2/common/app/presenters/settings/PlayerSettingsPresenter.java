@@ -122,7 +122,7 @@ public class PlayerSettingsPresenter extends BasePresenter<Void> {
             options.add(UiOptionItem.from(
                     percent + "%",
                     option -> votData.setOriginalVolume(volume),
-                    votData.getOriginalVolume() == volume));
+                    Math.abs(votData.getOriginalVolume() - volume) < 0.001f));
         }
 
         settingsPresenter.appendRadioCategory(getContext().getString(R.string.vot_original_volume), options);
