@@ -24,6 +24,17 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# При любом обрыве напоминаем о правках версии, оставшихся в рабочем дереве.
+VERSION_FILES_TOUCHED=0
+cleanup() {
+    if [ "$VERSION_FILES_TOUCHED" = "1" ] && [ "${RELEASE_DONE:-0}" != "1" ]; then
+        echo >&2
+        echo "⚠️ Выпуск прерван, но номер версии и адрес манифеста уже изменены в рабочем дереве." >&2
+        echo "   Откатить: git checkout -- smarttubetv/build.gradle common/src/ststable/res/values/update_urls.xml" >&2
+    fi
+}
+trap cleanup EXIT
+
 KEYSTORE="${EFIR_KEYSTORE:-$HOME/.efir-release.jks}"
 KEY_ALIAS="${EFIR_KEY_ALIAS:-efir}"
 KEYSTORE_PROPS="${EFIR_KEYSTORE_PROPS:-$HOME/.claude/home-media/tv-youtube-app/android/keystore.properties}"
@@ -50,6 +61,7 @@ OLD_CODE="$(grep -m1 -oE 'versionCode [0-9]+' "$GRADLE_FILE" | awk '{print $2}')
 NEW_CODE=$((OLD_CODE + 1))
 sed -i '' -E "s/versionCode $OLD_CODE/versionCode $NEW_CODE/" "$GRADLE_FILE"
 sed -i '' -E "s/versionName \"[^\"]*\"/versionName \"$VERSION_NAME\"/" "$GRADLE_FILE"
+VERSION_FILES_TOUCHED=1
 echo "версия: $OLD_CODE → $NEW_CODE ($VERSION_NAME)"
 
 # --- адрес обновлений внутри приложения ---
@@ -63,22 +75,49 @@ cat > common/src/ststable/res/values/update_urls.xml <<XML
 XML
 
 # --- сборка и подпись ---
+APK_DIR="smarttubetv/build/outputs/apk/ststable/release"
+# ⛔ Чистим каталог сборки: иначе `ls` может подобрать APK от прошлого релиза
+# (имя файла содержит номер версии, и выбор «по алфавиту» отдаёт 1.3 вместо 1.4).
+rm -f "$APK_DIR"/*.apk
 ./gradlew :smarttubetv:assembleStstableRelease -x lintVitalStstableRelease
-BUILT="$(ls smarttubetv/build/outputs/apk/ststable/release/*universal*.apk | head -1)"
+# Берём файл строго по номеру ТОЙ версии, которую сейчас выпускаем.
+MATCHES=$(ls "$APK_DIR"/*_"${VERSION_NAME}"_universal.apk 2>/dev/null | wc -l | tr -d ' ')
+if [ "$MATCHES" != "1" ]; then
+    echo "ожидал ровно один universal-APK версии $VERSION_NAME в $APK_DIR, нашёл $MATCHES" >&2
+    exit 1
+fi
+BUILT="$(ls "$APK_DIR"/*_"${VERSION_NAME}"_universal.apk)"
 OUT="$REPO_ROOT/build-release/$APK_NAME"
 mkdir -p "$(dirname "$OUT")"
 cp "$BUILT" "$OUT"
-STORE_PASS="$(grep -m1 '^storePassword=' "$KEYSTORE_PROPS" | cut -d= -f2-)"
-KEY_PASS="$(grep -m1 '^keyPassword=' "$KEYSTORE_PROPS" | cut -d= -f2-)"
-[ -n "$STORE_PASS" ] && [ -n "$KEY_PASS" ] || { echo "не прочитались пароли из $KEYSTORE_PROPS" >&2; exit 1; }
+# ⛔ Пароли передаём через ОКРУЖЕНИЕ, а не аргументом командной строки:
+# аргументы любого процесса видны через `ps` всем пользователям машины, окружение — только владельцу.
+export EFIR_STORE_PASS="$(grep -m1 '^storePassword=' "$KEYSTORE_PROPS" | cut -d= -f2-)"
+export EFIR_KEY_PASS="$(grep -m1 '^keyPassword=' "$KEYSTORE_PROPS" | cut -d= -f2-)"
+[ -n "$EFIR_STORE_PASS" ] && [ -n "$EFIR_KEY_PASS" ] || { echo "не прочитались пароли из $KEYSTORE_PROPS" >&2; exit 1; }
 apksigner sign --ks "$KEYSTORE" --ks-key-alias "$KEY_ALIAS" \
-    --ks-pass "pass:$STORE_PASS" --key-pass "pass:$KEY_PASS" "$OUT"
+    --ks-pass env:EFIR_STORE_PASS --key-pass env:EFIR_KEY_PASS "$OUT"
+unset EFIR_STORE_PASS EFIR_KEY_PASS
 apksigner verify "$OUT" >/dev/null && echo "подпись проверена"
 
 # --- манифест для встроенного апдейтера ---
 MANIFEST="$REPO_ROOT/build-release/$MANIFEST_NAME"
-PREV="$(gh release view latest --repo "$SLUG" --json assets -q '.assets[].name' 2>/dev/null | grep -c "$MANIFEST_NAME" || true)"
-if [ "$PREV" != "0" ]; then
+# ⛔ Отличаем «релиза ещё нет» от сетевого сбоя. Если проглотить ошибку, манифест будет
+# перезаписан пустым, и ВСЯ история changelog прошлых версий пропадёт на сервере.
+set +e
+RELEASE_INFO="$(gh release view latest --repo "$SLUG" --json assets 2>&1)"
+RELEASE_RC=$?
+set -e
+if [ $RELEASE_RC -ne 0 ]; then
+    if printf '%s' "$RELEASE_INFO" | grep -qiE "release not found|not found"; then
+        echo "релиза latest ещё нет — создаём историю changelog с нуля"
+        echo '{}' > "$MANIFEST"
+    else
+        echo "не удалось проверить релиз (сеть, токен, GitHub): $RELEASE_INFO" >&2
+        echo "прерываюсь, чтобы не затереть накопленный changelog пустым манифестом" >&2
+        exit 1
+    fi
+elif printf '%s' "$RELEASE_INFO" | grep -q "$MANIFEST_NAME"; then
     gh release download latest --repo "$SLUG" --pattern "$MANIFEST_NAME" --dir "$REPO_ROOT/build-release" --clobber
 else
     echo '{}' > "$MANIFEST"
@@ -100,6 +139,7 @@ PY
 gh release view latest --repo "$SLUG" >/dev/null 2>&1 || gh release create latest --repo "$SLUG" --title "Эфир 2" --notes "Свежая сборка «Эфира 2»"
 gh release upload latest --repo "$SLUG" "$OUT" "$MANIFEST" --clobber
 echo
+RELEASE_DONE=1
 echo "готово: версия $VERSION_NAME (код $NEW_CODE) опубликована"
 echo "манифест: $MANIFEST_URL"
 echo "⚠️ не забудь закоммитить изменившиеся $GRADLE_FILE и update_urls.xml"
