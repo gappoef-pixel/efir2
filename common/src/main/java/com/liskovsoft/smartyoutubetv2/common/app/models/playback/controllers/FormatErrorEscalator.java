@@ -25,6 +25,7 @@ public class FormatErrorEscalator {
 
     private String mVideoId;
     private int mFailureCount;
+    private boolean mReloadScheduled;
 
     /**
      * Зарегистрировать очередной провал и получить действие для него.
@@ -41,16 +42,37 @@ public class FormatErrorEscalator {
 
         switch (mFailureCount) {
             case 1:
+                mReloadScheduled = true;
                 return Action.SWITCH_CLIENT;
             case 2:
+                mReloadScheduled = true;
                 return Action.INVALIDATE_CACHE;
             default:
+                // Повторов больше не будет, значит и глотать нечего.
+                mReloadScheduled = false;
                 return Action.GIVE_UP;
         }
     }
 
-    /** Сбросить лестницу — вызывать при успешно полученных форматах. */
+    /** Сколько провалов подряд насчитано по текущему ролику. Нужен для лога. */
+    public int getFailureCount() {
+        return mFailureCount;
+    }
+
+    /**
+     * Сбросить лестницу — при успешно полученных форматах и при выборе ролика пользователем.
+     *
+     * <p>⛔ Ровно один сброс после каждой назначенной попытки проглатывается. Повтор, который
+     * назначила сама лестница, возвращается в плеер через {@code onNewVideo()} — тот же вызов,
+     * которым пользователь открывает ролик, отличить их снаружи нечем. Без этого счётчик
+     * обнулялся бы на каждом повторе и цикл остался бы бесконечным.
+     */
     public void reset() {
+        if (mReloadScheduled) {
+            mReloadScheduled = false;
+            return;
+        }
+
         mVideoId = null;
         mFailureCount = 0;
     }

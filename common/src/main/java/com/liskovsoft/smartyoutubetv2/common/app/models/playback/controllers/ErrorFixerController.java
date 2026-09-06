@@ -358,20 +358,21 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
      */
     private void runNoFormatsAction() {
         Video video = getVideo();
+        String videoId = video != null ? video.videoId : null;
+        FormatErrorEscalator.Action action = mFormatErrorEscalator.nextAction(videoId);
 
-        switch (mFormatErrorEscalator.nextAction(video != null ? video.videoId : null)) {
+        Log.e(TAG, "No formats for %s. Failure %s, doing: %s", videoId, mFormatErrorEscalator.getFailureCount(), action);
+
+        switch (action) {
             case SWITCH_CLIENT:
-                Log.d(TAG, "No formats received. Switching to the next client…");
                 YouTubeServiceManager.instance().switchNextClient();
                 mVideoLoaderController.reloadVideo();
                 break;
             case INVALIDATE_CACHE:
-                Log.d(TAG, "No formats received again. Invalidating the service cache…");
                 YouTubeServiceManager.instance().invalidateCache();
                 mVideoLoaderController.reloadVideo();
                 break;
             default:
-                Log.e(TAG, "No formats received after all attempts. Giving up.");
                 showNoFormatsError();
                 break;
         }
