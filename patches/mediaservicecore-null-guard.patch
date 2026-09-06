@@ -1,0 +1,23 @@
+diff --git a/SharedModules b/SharedModules
+index 86f03273..11116d27 160000
+--- a/SharedModules
++++ b/SharedModules
+@@ -1 +1 @@
+-Subproject commit 86f032738e3a24f6ee85c7a4ccd9524b0d20b7aa
++Subproject commit 11116d27ed61b25b959f5e6cda17b0090688a131
+diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
+index 5026ce46..395963e7 100644
+--- a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
++++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
+@@ -77,7 +77,10 @@ public class YouTubeMediaItemService implements MediaItemService {
+     private MediaItemFormatInfo selectPlaybackFormatInfo(String videoId, String clickTrackingParams) {
+         MediaItemFormatInfo formatInfo = getFormatInfoLegacy(videoId, clickTrackingParams);
+ 
+-        if (formatInfo.isUnplayable()) {
++        // NOTE: getFormatInfoLegacy() returns null when every client came back empty — the very
++        // case this fallback exists for. Without the null check it throws NPE instead of falling
++        // back to the innertube (watch page) route.
++        if (formatInfo == null || formatInfo.isUnplayable()) {
+             formatInfo = getFormatInfoInnertube(videoId, clickTrackingParams);
+         }
+ 

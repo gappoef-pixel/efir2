@@ -55,6 +55,11 @@ APK_NAME="efir2_universal.apk"
 APK_URL="https://github.com/$SLUG/releases/download/latest/$APK_NAME"
 echo "репозиторий: $SLUG"
 
+# --- наши патчи к чужому подмодулю ---
+# ⛔ Без этого выпуск однажды тихо уедет без них: патчи живут в рабочем дереве подмодуля,
+# а не в его истории (пушить в yuliskov/MediaServiceCore мы не можем). См. patches/README.md.
+"$REPO_ROOT/scripts/apply-patches.sh"
+
 # --- версия ---
 GRADLE_FILE="smarttubetv/build.gradle"
 OLD_CODE="$(grep -m1 -oE 'versionCode [0-9]+' "$GRADLE_FILE" | awk '{print $2}')"
