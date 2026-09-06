@@ -81,6 +81,12 @@ public class VideoLoaderController extends BasePlayerController {
 
         item.isShuffled = false;
 
+        // The user picked a video himself. Give the format retries a fresh start.
+        // NOTE: onNewVideo may arrive before onInit (e.g. an intent from outside).
+        if (mErrorFixerController != null) {
+            mErrorFixerController.resetFormatErrors();
+        }
+
         if (!item.fromQueue && !item.belongsToPlaybackQueue()) {
             mPlaylist.add(item);
         } else {
@@ -301,6 +307,8 @@ public class VideoLoaderController extends BasePlayerController {
         if (player == null || getVideo() == null) {
             return;
         }
+
+        mErrorFixerController.resetFormatErrors();
 
         String bgImageUrl = null;
 

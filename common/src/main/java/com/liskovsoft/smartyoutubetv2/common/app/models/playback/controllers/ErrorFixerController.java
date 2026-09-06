@@ -23,6 +23,7 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
     private static final String TAG = ErrorFixerController.class.getSimpleName();
     private static final long STREAM_END_THRESHOLD_MS = 180_000;
     private final BufferingDetector mBufferingDetector = new BufferingDetector(this);
+    private final FormatErrorEscalator mFormatErrorEscalator = new FormatErrorEscalator();
     private VideoLoaderController mVideoLoaderController;
 
     @Override
@@ -322,6 +323,12 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
             return;
         }
 
+        if (Helpers.containsAny(message, "fromNullable result is null")) {
+            // Formats aren't received at all. Escalate instead of reloading the same state forever.
+            runNoFormatsAction();
+            return;
+        }
+
         if (Helpers.containsAny(message, "Unexpected token", "Syntax error", "invalid argument") || // temporal fix
                 Helpers.equalsAny(className, "PoTokenException", "BadWebViewException")) {
             YouTubeServiceManager.instance().switchNextClient();
@@ -333,6 +340,54 @@ public class ErrorFixerController extends BasePlayerController implements OnLong
             Log.e(TAG, "Probably no internet connection");
             mVideoLoaderController.reloadVideo();
         }
+    }
+
+    /**
+     * Сбросить лестницу попыток. Зовётся при успешно полученных форматах и при новом
+     * ролике, выбранном пользователем — иначе повторный заход на тот же ролик сразу
+     * упёрся бы в исчерпанный счётчик.
+     */
+    public void resetFormatErrors() {
+        mFormatErrorEscalator.reset();
+    }
+
+    /**
+     * Форматы не получены ни от одного клиента. Апстрим на этом месте молча повторяет
+     * запрос раз в секунду, ничего не сбрасывая, — устойчивый отказ превращается в вечный
+     * крутящийся кружок. Поднимаемся по лестнице и на третьем провале честно останавливаемся.
+     */
+    private void runNoFormatsAction() {
+        Video video = getVideo();
+
+        switch (mFormatErrorEscalator.nextAction(video != null ? video.videoId : null)) {
+            case SWITCH_CLIENT:
+                Log.d(TAG, "No formats received. Switching to the next client…");
+                YouTubeServiceManager.instance().switchNextClient();
+                mVideoLoaderController.reloadVideo();
+                break;
+            case INVALIDATE_CACHE:
+                Log.d(TAG, "No formats received again. Invalidating the service cache…");
+                YouTubeServiceManager.instance().invalidateCache();
+                mVideoLoaderController.reloadVideo();
+                break;
+            default:
+                Log.e(TAG, "No formats received after all attempts. Giving up.");
+                showNoFormatsError();
+                break;
+        }
+    }
+
+    private void showNoFormatsError() {
+        if (getPlayer() == null) {
+            return;
+        }
+
+        String errorMessage = getContext().getString(R.string.msg_player_no_formats);
+
+        getPlayer().showProgressBar(false);
+        getPlayer().setTitle(errorMessage);
+        getPlayer().showControls(true);
+        MessageHelpers.showLongMessage(getContext(), errorMessage);
     }
 
     /**
