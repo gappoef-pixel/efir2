@@ -29,12 +29,23 @@ git -C MediaServiceCore diff --stat
 ## `mediaservicecore-null-guard.patch`
 
 **Что чинит.** В `YouTubeMediaItemService.selectPlaybackFormatInfo()` (появился в апстримном
-`0b01a017` от 06.09.2026) результат `getFormatInfoLegacy()` используется без проверки на `null`:
+`0b01a017` от 06.09.2026) запасной путь через watch-страницу не срабатывает, когда он нужнее всего.
+
+Сначала апстрим брал результат `getFormatInfoLegacy()` без проверки на `null`:
 
 ```java
-MediaItemFormatInfo formatInfo = getFormatInfoLegacy(videoId, clickTrackingParams);
 if (formatInfo.isUnplayable()) {          // ← NPE, когда formatInfo == null
 ```
+
+13.09.2026 (после обновления подмодуля до `96cfe447`) апстрим проверку добавил, но **не в ту
+сторону** — теперь при `null` фолбэк просто пропускается:
+
+```java
+if (formatInfo != null && formatInfo.isUnplayable()) {   // ← при null НЕ идём на watch-страницу
+```
+
+Нам нужно `formatInfo == null || formatInfo.isUnplayable()`. Падения нет, но результат тот же:
+`null` уходит наверх, приложение показывает отказ вместо того, чтобы попробовать watch-страницу.
 
 А `getFormatInfoLegacy()` возвращает `null` ровно тогда, когда **все** клиенты вернули пусто
 (`YouTubeMediaItemFormatInfo.from(null)` → `null`) — то есть в том самом случае, ради которого
